@@ -192,7 +192,8 @@ function Set-GroupMembership {
             }
 
             # Wrap the action and status message in a try/catch so that it
-            # doesn't give spurious status outputs.
+            # doesn't give spurious status outputs, or stop processing 
+            # unnecessarily.
             Try
             {
                 $group.PSBase.Invoke($Disposition,$member.PSBase.Path)
@@ -200,10 +201,28 @@ function Set-GroupMembership {
                 # Write the result to the verbose stream.
                 Write-Verbose ($ResultFormat -f $memberBase.Path, $groupBase.Path)
             }
-            # I'm not sure how to handle this, yet, so just rethrow the
-            # full exception.
+            Catch [System.Management.Automation.MethodInvocationException]
+            {
+                If ($_.Exception.InnerException.ErrorCode -eq '-2147023519')
+                {
+                    # The specified account is not a member of the group
+                    # that we attempted to remove it from.
+                    Write-Verbose $_.Exception.InnerException.Message
+                }
+                ElseIf ($_.Exception.InnerException.ErrorCode -eq '-2147023518')
+                {
+                    # The specified account is already a member of the group
+                    # that we attempted to add it to.
+                    Write-Verbose $_.Exception.InnerException.Message
+                }
+                Else
+                {
+                    Throw $_
+                }
+            }
             Catch
             {
+                Write-Verbose 'An Unknown Exception Occurred'
                 Throw $_
             }
         }
