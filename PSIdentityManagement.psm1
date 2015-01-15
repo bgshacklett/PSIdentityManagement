@@ -207,13 +207,13 @@ function Set-GroupMembership {
                 {
                     # The specified account is not a member of the group
                     # that we attempted to remove it from.
-                    Write-Verbose $_.Exception.InnerException.Message
+                    Write-Warning $_.Exception.InnerException.Message
                 }
                 ElseIf ($_.Exception.InnerException.ErrorCode -eq '-2147023518')
                 {
                     # The specified account is already a member of the group
                     # that we attempted to add it to.
-                    Write-Verbose $_.Exception.InnerException.Message
+                    Write-Warning $_.Exception.InnerException.Message
                 }
                 Else
                 {
