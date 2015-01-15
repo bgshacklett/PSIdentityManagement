@@ -77,9 +77,17 @@ function Add-GroupMember {
         $Members
     )
 
+    Begin
+    {
+        [string]$TargetFormat = 'Member "{0}" of group "{1}"'
+    }
+
     Process
     {
-        Set-GroupMembership -Identity $Identity -Members $Members -Disposition 'Add'
+        If ($PSCmdlet.ShouldProcess(($TargetFormat -f $Members, $Identity)))
+        {
+            Set-GroupMembership -Identity $Identity -Members $Members -Disposition 'Add'
+        }
     }
 }
 
@@ -107,9 +115,17 @@ function Remove-GroupMember {
         $Members
     )
 
+    Begin
+    {
+        [string]$TargetFormat = 'Member "{0}" of group "{1}"'
+    }
+
     Process
     {
-        Set-GroupMembership -Identity $Identity -Members $Members -Disposition 'Remove'
+        If ($PSCmdlet.ShouldProcess(($TargetFormat -f $Members, $Identity)))
+        {
+            Set-GroupMembership -Identity $Identity -Members $Members -Disposition 'Remove'
+        }
     }
 }
 
@@ -121,7 +137,7 @@ function Remove-GroupMember {
 function Set-GroupMembership {
     <##>
 
-    [CmdletBinding(SupportsShouldProcess=$True)]
+    [CmdletBinding(SupportsShouldProcess=$False)]
     param
     (
         # Accept groups in pipeline input
@@ -142,13 +158,11 @@ function Set-GroupMembership {
     {
         IF ( $Disposition -eq "Add" )
         {
-            [string]$TargetFormat = 'Member "{0}" of group "{1}"'
             [string]$NotAGroupExceptionFormat = 'The Security object "{0}" is not a group and cannot have members added to it.'
             [string]$ResultFormat = 'The member {0} was successfully added to group {1}'
         }
         Else
         {
-            [string]$TargetFormat = 'Member "{0}" of group "{1}"'
             [string]$NotAGroupExceptionFormat = 'The Security object "{0}" is not a group and cannot have members removed from it.'
             [string]$ResultFormat = 'The member {0} was successfully removed from the group {1}'
         }
@@ -161,39 +175,36 @@ function Set-GroupMembership {
         
         $Members | % {
             
+        Try
+        {
+            $member = Get-SecurityObject -Identity $_
+            $memberBase = $member.PSBase
+        }
+        Catch
+        {
+            Throw $_
+        }
+
+            # Make sure that $group is actually a group.
+            If ($group.groupType -eq "")
+            {
+                Throw ($NotAGroupExceptionFormat -f $groupBase.Path)
+            }
+
+            # Wrap the action and status message in a try/catch so that it
+            # doesn't give spurious status outputs.
             Try
             {
-                $member = Get-SecurityObject -Identity $_
-                $memberBase = $member.PSBase
+                $group.PSBase.Invoke($Disposition,$member.PSBase.Path)
+
+                # Write the result to the verbose stream.
+                Write-Verbose ($ResultFormat -f $memberBase.Path, $groupBase.Path)
             }
+            # I'm not sure how to handle this, yet, so just rethrow the
+            # full exception.
             Catch
             {
                 Throw $_
-            }
-
-            If ($PSCmdlet.ShouldProcess(($TargetFormat -f $memberBase.Path, $groupBase.Path)))
-            {
-                # Make sure that $group is actually a group.
-                If ($group.groupType -eq "")
-                {
-                    Throw ($NotAGroupExceptionFormat -f $groupBase.Path)
-                }
-
-                # Wrap the action and status message in a try/catch so that it
-                # doesn't give spurious status outputs.
-                Try
-                {
-                    $group.PSBase.Invoke($Disposition,$member.PSBase.Path)
-
-                    # Write the result to the verbose stream.
-                    Write-Verbose ($ResultFormat -f $memberBase.Path, $groupBase.Path)
-                }
-                # I'm not sure how to handle this, yet, so just rethrow the
-                # full exception.
-                Catch
-                {
-                    Throw $_
-                }
             }
         }
     }
