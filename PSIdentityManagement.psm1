@@ -171,17 +171,3 @@ function Remove-GroupMember {
         }
     }
 }
-
-
-
-
-
-<#
-$groupName = "Administrators"
-$membersToRemove = "Administrator"
-
-$servers | % {
-    Get-SecurityObject -Domain $_ -Identity $groupName |
-    Remove-GroupMember -Members $membersToRemove -WhatIf
-}
-#>
